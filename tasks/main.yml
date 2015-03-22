@@ -1,0 +1,8 @@
+- name: check if a hbase-regionserver container is started
+  command: bash -c "docker ps | grep hbase-regionserver"
+  ignore_errors: True
+  register: result
+
+- name: start an hbase-regionserver container
+  command: docker run -d -h {{ ansible_hostname }}  --dns {{ ansible_docker0.ipv4.address }} --dns 8.8.8.8 --dns-search node.dc1.consul -p={{ hbase_regionserver_port }}:{{ hbase_regionserver_port }} -p=16030:16030  -v {{ ext_hadoop_conf_volume }}:/hbase/conf -name hbase-regionserver gitinsky/hbase-regionserver:0.1.0
+  when: result|failed
