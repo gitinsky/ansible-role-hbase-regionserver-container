@@ -4,5 +4,10 @@
   register: result
 
 - name: start an hbase-regionserver container
-  command: docker run -d -h {{ ansible_hostname }}  --dns {{ ansible_docker0.ipv4.address }} --dns 8.8.8.8 --dns-search node.dc1.consul -p={{ hbase_regionserver_port }}:{{ hbase_regionserver_port }} -p=16030:16030  -v {{ ext_hadoop_conf_volume }}:/hbase/conf -name hbase-regionserver gitinsky/hbase-regionserver:0.1.0
+  command: docker run -d {% if docker_net_false|default(False) %} -n=false -v {{ ext_hadoop_conf_volume }}/hosts:/etc/hosts {% endif %} -h {{ ansible_hostname }}{% if docker_net_false|default(False) %}-rs{% endif %} --dns {{ ansible_docker0.ipv4.address }} --dns {{ docker_dns_2 }} --dns-search node.dc1.consul -p={{ hbase_regionserver_port }}:{{ hbase_regionserver_port }} -p=16030:16030  -v {{ ext_hadoop_conf_volume }}:/hbase/conf -name hbase-regionserver gitinsky/hbase-regionserver:0.1.1
+  register: docker_id
   when: result|failed
+
+- name: start network
+  shell: /root/ovswork.sh br10 {{ docker_id.stdout }} {{ network_map[ '' + ansible_hostname + '-rs' ] }}/24 {{ network_map[ '_broadcast' ] }} {{ network_map['_gateway'] }}
+  when: (docker_id.changed == True) and (docker_net_false|default(False) == True)
