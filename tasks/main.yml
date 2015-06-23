@@ -1,3 +1,6 @@
+- name: create ext volume for logs
+  file: state=directory path={{ ext_hadoop_logs_volume }}
+
 - name: check if a hbase-regionserver container is started
   command: bash -c "docker ps | grep hbase-regionserver"
   ignore_errors: True
@@ -6,16 +9,18 @@
 - name: start an hbase-regionserver container
   command: docker run -d
            {% if docker_net_false|default(False) %}
-           -n=false -v {{ ext_hadoop_conf_volume }}/hosts:/etc/hosts
+              -n=false -v {{ ext_hadoop_conf_volume }}/hosts:/etc/hosts
+              -v {{ ext_hadoop_conf_volume }}/resolv.conf:/etc/resolv.conf
            {% endif %}
            -h {{ ansible_hostname }}{% if docker_net_false|default(False) %}-rs{% endif %}
-           --dns {{ ansible_docker0.ipv4.address }}
            --dns {{ docker_dns_2 }}
+           --dns {{ ansible_docker0.ipv4.address }}
            --dns-search node.dc1.consul
            -p={{ hbase_regionserver_port }}:{{ hbase_regionserver_port }}
            -p=16030:16030
            -v {{ ext_hadoop_conf_volume }}:/hbase/conf
-           -name hbase-regionserver gitinsky/hbase-regionserver:0.1.1
+           -v {{ ext_hadoop_logs_volume }}:/var/log/hbase
+           --name=hbase-regionserver gitinsky/hbase-regionserver:0.1.2
   register: docker_id
   when: result|failed
 
